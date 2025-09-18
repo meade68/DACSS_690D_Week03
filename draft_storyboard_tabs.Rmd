@@ -1,0 +1,59 @@
+---
+title: "THEMATICS - tabs"
+output:
+  flexdashboard::flex_dashboard:
+    navbar:
+      - { icon: "fa-github", href: "https://github.com/DACSS-Spatial/The-Thematics", align: right }
+
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard) # always
+```
+
+## Sidebar {.sidebar}
+
+
+Preparing the dashboard based on the instructions given in class!
+
+## Column {.tabset .tabset-fade}
+
+
+### DDM 1
+
+```{r}
+readRDS("plot1_a.rds")
+```
+
+
+### DDM 2
+
+```{r}
+readRDS("plot1_b.rds")
+```
+
+### PSM 1
+
+```{r}
+readRDS("plot2_a.rds")
+```
+
+### PSM 2
+
+```{r}
+readRDS("plot2_b.rds")
+```
+
+
+### CHORO 1
+
+```{r}
+readRDS("plot3_a.rds")
+```
+
+### CHORO 2
+
+```{r}
+readRDS("plot3_b.rds")
+```
+

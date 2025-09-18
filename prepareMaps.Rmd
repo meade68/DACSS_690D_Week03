@@ -1,0 +1,233 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+rm(list = ls())
+
+africaLink="https://github.com/DACSS-Spatial/data_forSpatial/raw/refs/heads/main/WORLD/africa_8857.gpkg"
+library(sf)
+st_layers(africaLink)
+```
+## Reading the layers:
+
+```{r, message=FALSE}
+africa <- st_read(africaLink, layer = "continent")
+africaPopu_ddm <- st_read(africaLink, layer = "population_ddm")
+africaPopu_psm <- st_read(africaLink, layer = "population_psm")
+
+```
+
+## Checking CRS
+
+```{r}
+st_crs(africa)$epsg
+```
+
+# THE BASE
+```{r}
+library(ggplot2)
+library(scales)
+
+ggplot() + theme_light() +
+  #call map
+  geom_sf(data = africa) + 
+  # adjust datum 
+  coord_sf(datum = st_crs(africa)) + 
+  # custom X and Y axes
+  scale_x_continuous(labels = label_number(scale = 1/1000, suffix = " km")) +
+  scale_y_continuous(labels = label_number(scale = 1/1000, suffix = " km")) +
+  labs(x = "Easting", y = "Northing") #labels
+```
+# DDM - static
+
+```{r}
+plot1_a=ggplot() + theme_light() +
+  #base
+  geom_sf(data = africa,fill="white",color="grey80") +
+  # layer
+  geom_sf(data=africaPopu_ddm,
+          alpha=0.1,#transparency
+          shape=20,
+          size=0.5,
+          color="red")+
+  coord_sf(datum = st_crs(africa)) + 
+  # custom X and Y axes
+  scale_x_continuous(labels = label_number(scale = 1/1000, suffix = " km")) +
+  scale_y_continuous(labels = label_number(scale = 1/1000, suffix = " km")) +
+  labs(x = "Easting", y = "Northing") #labels
+
+plot1_a
+```
+# DDM - interactive
+
+```{r}
+library(leaflet)
+# needs geographic CRS
+ddm_4326 <- st_transform(africaPopu_ddm, crs = 4326)
+
+leaflet() %>%
+  addTiles() %>%  # base map
+  addCircleMarkers(data = ddm_4326,
+                   color="red",
+                   stroke=0,
+                   radius = 0.01,
+                   opacity = 0.1)
+```
+
+Almost the same:
+
+```{r}
+plot1_b=leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron)  %>%  # names in english
+  addCircleMarkers(data = ddm_4326,
+                   color="red",
+                   stroke=0,
+                   radius = 0.01,
+                   opacity = 0.1)
+plot1_b
+```
+
+
+# PSM - static
+
+```{r}
+plot2_a=ggplot() + theme_light() +
+  #base
+  geom_sf(data = africa,fill="white",color="grey80") +
+  # layer
+  geom_sf(data=africaPopu_psm,
+          shape=20,
+          aes(size=population/1000,color=factor(population_outlier)))+
+  scale_size_area(
+    name = "Population (x1,000)", # Name for the legend
+    max_size = 20) +       # This defines the maximum *radius*
+  guides(color="none") + 
+  
+  coord_sf(datum = st_crs(africa)) + 
+  # custom X and Y axes
+  scale_x_continuous(labels = label_number(scale = 1/1000, suffix = " km")) +
+  scale_y_continuous(labels = label_number(scale = 1/1000, suffix = " km")) +
+  labs(x = "Easting", y = "Northing") #labels
+
+plot2_a  
+```
+# PSM - interactive
+
+```{r}
+# CRS for leaflet
+psm_4326 <- st_transform(africaPopu_psm, crs = 4326)
+
+
+plot2_b=leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron)  %>%  
+  addCircleMarkers(data = psm_4326,
+                   # fillColor = "red",
+                   # stroke = T, #border
+                   # color="red", #border color
+                   # fillOpacity = 1,
+                   label = ~Country,
+                   radius = ~size)
+plot2_b
+```
+
+
+# CHORO - static
+
+```{r}
+plot3_a=ggplot() + theme_light() +
+  #base
+  geom_sf(data=africa,
+          aes(fill=population_density_FJ5_cat))+
+  coord_sf(datum = st_crs(africa)) +
+  scale_fill_brewer(direction = 1,palette = 'RdBu') + 
+  scale_x_continuous(labels = label_number(scale = 1/1000, suffix = " km")) +
+  scale_y_continuous(labels = label_number(scale = 1/1000, suffix = " km")) +
+  labs(x = "Easting", y = "Northing",fill="Pop Density")
+  
+plot3_a
+  
+```
+
+# CHORO - interactive
+
+```{r}
+choro_4326 <- st_transform(africa, crs = 4326)
+#needed
+choro_4326$population_density_FJ5_cat=ordered(choro_4326$population_density_FJ5_cat)
+# First, create a color palette for your categorical variable
+pal <- colorFactor(palette = "RdBu",
+                   domain = choro_4326$population_density_FJ5_cat,
+                   ordered = T,
+                   reverse = F)
+
+leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron)  %>% 
+  addPolygons(
+    data = choro_4326,
+    fillColor = ~pal(population_density_FJ5_cat),
+    fillOpacity = 0.7,
+    color = "white",
+    weight = 1,
+    opacity = 1
+    ) %>%
+  addLegend(
+    pal = pal,
+    values = choro_4326$population_density_FJ5_cat,
+    )
+```
+
+```{r}
+# Calculate the center of Africa for the home button
+africa_center <- st_bbox(choro_4326) %>% 
+  as.vector() %>% 
+  {c(mean(c(.[1], .[3])), mean(c(.[2], .[4])))}  # Calculate center coordinates
+
+
+plot3_b=leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron)  %>% 
+addPolygons(
+    data = choro_4326,
+    fillColor = ~pal(population_density_FJ5_cat),
+    fillOpacity = 0.7,
+    color = "white",
+    weight = 1,
+    opacity = 1,
+    label = lapply(
+      paste("<strong>", choro_4326$Country, "</strong><br>",
+            "Density: ", choro_4326$population_density),
+      htmltools::HTML
+    )
+  ) %>%
+  addLegend(
+    pal = pal,
+    values = choro_4326$population_density_FJ5_cat,
+    opacity = 0.7,
+    title = "Population Density",
+    position = "bottomright"
+  )%>%
+  addEasyButton(
+    easyButton(
+      icon = "fa-home", 
+      title = "Reset to Africa View",
+      onClick = JS(sprintf("function(btn, map){ map.setView([%f, %f], 3); }", 
+                          africa_center[2], africa_center[1]))
+    )
+  )
+plot3_b
+```
+
+
+
+```{r}
+saveRDS(plot1_a,file = "plot1_a.rds")
+saveRDS(plot1_b,file = "plot1_b.rds")
+saveRDS(plot2_a,file = "plot2_a.rds")
+saveRDS(plot2_b,file = "plot2_b.rds")
+saveRDS(plot3_a,file = "plot3_a.rds")
+saveRDS(plot3_b,file = "plot3_b.rds")
+```
+
